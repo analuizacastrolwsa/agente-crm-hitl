@@ -27,7 +27,7 @@ class AgentState(TypedDict):
 # ---------------------------------------------------------------------------
 
 llm = ChatAnthropic(
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     api_key=ANTHROPIC_API_KEY,
     max_tokens=8096,
 ).bind_tools(ALL_TOOLS)

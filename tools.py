@@ -4,7 +4,7 @@ Cada função é registrada como tool no LangGraph via @tool decorator.
 """
 
 import requests
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone  # noqa: F401
 from langchain_core.tools import tool
 
 from config import (
@@ -274,6 +274,115 @@ def solicitar_analise_workflow(contexto: str) -> dict:
     return {"relatorio": report}
 
 
+# ---------------------------------------------------------------------------
+# 7. calcular_metricas_pipeline  (Analytics — Passo 5)
+# ---------------------------------------------------------------------------
+
+@tool
+def calcular_metricas_pipeline(deals: list[dict]) -> dict:
+    """
+    Calcula métricas de saúde do pipeline a partir da lista de deals já buscados.
+    Retorna health score (0-100), distribuição por estágio e contagens de problemas.
+
+    Args:
+        deals: Lista de deals retornada por buscar_deals_abertos.
+    """
+    total = len(deals)
+    if total == 0:
+        return {"health_score": 100, "total": 0}
+
+    agora = datetime.now(timezone.utc)
+    sem_owner = 0
+    sem_atividade = 0
+    close_date_vencida = 0
+    sem_valor = 0
+    por_estagio: dict[str, int] = {}
+
+    for deal in deals:
+        sem_owner += 1 if not deal.get("hubspot_owner_id") else 0
+
+        ultima_mod = deal.get("hs_lastmodifieddate")
+        if ultima_mod:
+            try:
+                dt = datetime.fromisoformat(ultima_mod.replace("Z", "+00:00"))
+                if (agora - dt).days > 14:
+                    sem_atividade += 1
+            except Exception:
+                pass
+
+        close_date = deal.get("closedate")
+        if close_date:
+            try:
+                dt = datetime.fromisoformat(close_date.replace("Z", "+00:00"))
+                if dt < agora:
+                    close_date_vencida += 1
+            except Exception:
+                pass
+
+        try:
+            if not deal.get("amount") or float(deal.get("amount") or 0) == 0:
+                sem_valor += 1
+        except (ValueError, TypeError):
+            sem_valor += 1
+
+        estagio = deal.get("dealstage", "desconhecido")
+        por_estagio[estagio] = por_estagio.get(estagio, 0) + 1
+
+    problemas = sem_owner + sem_atividade + close_date_vencida
+    health_score = max(0, round(100 - (problemas / total) * 100))
+
+    return {
+        "total": total,
+        "health_score": health_score,
+        "sem_owner": sem_owner,
+        "sem_atividade_14d": sem_atividade,
+        "close_date_vencida": close_date_vencida,
+        "sem_valor": sem_valor,
+        "por_estagio": por_estagio,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 8. sugerir_acoes_corretivas  (HITL — Passo 4)
+# ---------------------------------------------------------------------------
+
+@tool
+def sugerir_acoes_corretivas(acoes: list[dict]) -> dict:
+    """
+    Posta no Slack uma lista de ações corretivas sugeridas aguardando aprovação humana.
+    O agente NUNCA executa essas ações sozinho — apenas sugere e aguarda resposta.
+
+    Args:
+        acoes: Lista de dicts com campos: tipo, deal_id, dealname, descricao.
+               Exemplo: {"tipo": "atribuir_owner", "deal_id": "123",
+                         "dealname": "Loja X", "descricao": "Atribuir owner: João"}
+    """
+    if not acoes:
+        return {"ok": True, "mensagem": "Nenhuma ação corretiva necessária."}
+
+    linhas = ["🔧 *Ações Corretivas Sugeridas — Aguardando Aprovação Humana*\n"]
+    for i, acao in enumerate(acoes, 1):
+        dealname = acao.get("dealname") or acao.get("deal_id", "?")
+        descricao = acao.get("descricao") or acao.get("tipo", "?")
+        linhas.append(f"{i}. *{dealname}* — {descricao}")
+
+    linhas.append(
+        "\n_Responda neste thread com ✅ para aprovar todas ou liste os números desejados._"
+        "\n_O agente não realizará nenhuma alteração sem aprovação explícita._"
+    )
+
+    texto = "\n".join(linhas)
+    payload = {"channel": SLACK_CHANNEL_ID, "text": texto}
+    url = f"{SLACK_BASE_URL}/chat.postMessage"
+    resp = requests.post(url, json=payload, headers=_SLACK_HEADERS, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Slack error: {data.get('error')}")
+
+    return {"ok": True, "ts": data.get("ts"), "acoes_sugeridas": len(acoes)}
+
+
 # Exporta lista de tools para o agente
 ALL_TOOLS = [
     buscar_deals_abertos,
@@ -282,4 +391,6 @@ ALL_TOOLS = [
     postar_canal_slack,
     buscar_historico_slack,
     solicitar_analise_workflow,
+    calcular_metricas_pipeline,
+    sugerir_acoes_corretivas,
 ]

@@ -103,7 +103,7 @@ class SubState(TypedDict):
 
 
 _llm = ChatAnthropic(
-    model="claude-sonnet-5",
+    model="claude-sonnet-5-5",
     api_key=ANTHROPIC_API_KEY,
     max_tokens=3000,
 ).bind_tools(_SUBAGENT_TOOLS)

@@ -133,7 +133,7 @@ def buscar_deals_abertos(pipeline_id: str = "") -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 2. buscar_contatos_batch  (skeleton — implementar a seguir)
+# 2. buscar_contatos_batch
 # ---------------------------------------------------------------------------
 
 @tool
@@ -144,26 +144,60 @@ def buscar_contatos_batch(deal_ids: list[str]) -> dict:
     Args:
         deal_ids: Lista de IDs de deals (strings).
     """
-    raise NotImplementedError("Implementar na próxima etapa")
+    if not deal_ids:
+        return {"associations": {}}
+
+    # Processa em lotes de 100 (limite da API)
+    associations: dict[str, list[str]] = {}
+
+    for i in range(0, len(deal_ids), 100):
+        batch = deal_ids[i:i + 100]
+        payload = {"inputs": [{"id": did} for did in batch]}
+        data = _hubspot_post(
+            "/crm/v4/associations/deals/contacts/batch/read", payload
+        )
+        for result in data.get("results", []):
+            deal_id = result.get("from", {}).get("id")
+            contact_ids = [a["toObjectId"] for a in result.get("to", [])]
+            if deal_id:
+                associations[str(deal_id)] = [str(c) for c in contact_ids]
+
+    return {"associations": associations}
 
 
 # ---------------------------------------------------------------------------
-# 3. buscar_detalhes_contatos  (skeleton)
+# 3. buscar_detalhes_contatos
 # ---------------------------------------------------------------------------
 
 @tool
 def buscar_detalhes_contatos(contact_ids: list[str]) -> dict:
     """
-    Busca propriedades dos contatos em batch.
+    Busca propriedades dos contatos em batch: owner, email, nome e telefone.
 
     Args:
         contact_ids: Lista de IDs de contatos (strings).
     """
-    raise NotImplementedError("Implementar na próxima etapa")
+    if not contact_ids:
+        return {"contacts": {}}
+
+    properties = ["hubspot_owner_id", "email", "firstname", "lastname", "phone"]
+    contacts: dict[str, dict] = {}
+
+    for i in range(0, len(contact_ids), 100):
+        batch = contact_ids[i:i + 100]
+        payload = {
+            "properties": properties,
+            "inputs": [{"id": cid} for cid in batch],
+        }
+        data = _hubspot_post("/crm/v3/objects/contacts/batch/read", payload)
+        for c in data.get("results", []):
+            contacts[str(c["id"])] = c.get("properties", {})
+
+    return {"contacts": contacts}
 
 
 # ---------------------------------------------------------------------------
-# 4. postar_canal_slack  (skeleton)
+# 4. postar_canal_slack
 # ---------------------------------------------------------------------------
 
 @tool
@@ -174,11 +208,18 @@ def postar_canal_slack(texto: str) -> dict:
     Args:
         texto: Texto da mensagem (suporta Slack mrkdwn).
     """
-    raise NotImplementedError("Implementar na próxima etapa")
+    payload = {"channel": SLACK_CHANNEL_ID, "text": texto}
+    url = f"{SLACK_BASE_URL}/chat.postMessage"
+    resp = requests.post(url, json=payload, headers=_SLACK_HEADERS, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Slack error: {data.get('error')}")
+    return {"ok": True, "ts": data.get("ts"), "channel": data.get("channel")}
 
 
 # ---------------------------------------------------------------------------
-# 5. buscar_historico_slack  (skeleton)
+# 5. buscar_historico_slack
 # ---------------------------------------------------------------------------
 
 @tool
@@ -189,22 +230,48 @@ def buscar_historico_slack(dias: int = 30) -> dict:
     Args:
         dias: Janela de busca em dias (padrão 30).
     """
-    raise NotImplementedError("Implementar na próxima etapa")
+    import time
+    oldest = str(time.time() - dias * 86400)
+
+    params = {
+        "channel": SLACK_CHANNEL_ID,
+        "oldest": oldest,
+        "limit": 100,
+    }
+    url = f"{SLACK_BASE_URL}/conversations.history"
+    resp = requests.get(url, params=params, headers=_SLACK_HEADERS, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Slack error: {data.get('error')}")
+
+    messages = [
+        {"ts": m.get("ts"), "text": m.get("text", "")[:300]}
+        for m in data.get("messages", [])
+        if m.get("subtype") is None
+    ]
+    return {"messages": messages, "total": len(messages)}
 
 
 # ---------------------------------------------------------------------------
-# 6. solicitar_analise_workflow  (skeleton)
+# 6. solicitar_analise_workflow
 # ---------------------------------------------------------------------------
 
 @tool
 def solicitar_analise_workflow(contexto: str) -> dict:
     """
-    Aciona o subagente de análise profunda de inconsistências.
+    Aciona o subagente de análise profunda de inconsistências de workflow HubSpot.
 
     Args:
-        contexto: Resumo JSON dos deals problemáticos encontrados.
+        contexto: Resumo dos deals problemáticos e nome do workflow suspeito.
     """
-    raise NotImplementedError("Implementar na próxima etapa")
+    from subagent import run_analise_profunda
+
+    report = run_analise_profunda(
+        workflow_nome_origem="workflow CRM",
+        motivo=contexto,
+    )
+    return {"relatorio": report}
 
 
 # Exporta lista de tools para o agente

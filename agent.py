@@ -1,16 +1,16 @@
 """
 StateGraph do agente CRM HITL.
-Estrutura: call_claude → execute_tool → loop até sem tool calls.
+Estrutura: call_llm → execute_tool → loop até sem tool calls.
 """
 
 from typing import Annotated, TypedDict
 
-from langchain_anthropic import ChatAnthropic
+from langchain_groq import ChatGroq
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
-from config import ANTHROPIC_API_KEY
+from config import GROQ_API_KEY
 from prompt import SYSTEM_PROMPT
 from tools import ALL_TOOLS
 
@@ -23,25 +23,16 @@ class AgentState(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# Modelo com prompt caching
+# Modelo
 # ---------------------------------------------------------------------------
 
-llm = ChatAnthropic(
-    model="claude-sonnet-5-5",
-    api_key=ANTHROPIC_API_KEY,
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    api_key=GROQ_API_KEY,
     max_tokens=8096,
 ).bind_tools(ALL_TOOLS)
 
-# System prompt com cache_control para economizar tokens entre execuções diárias
-_SYSTEM = SystemMessage(
-    content=[
-        {
-            "type": "text",
-            "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral"},
-        }
-    ]
-)
+_SYSTEM = SystemMessage(content=SYSTEM_PROMPT)
 
 
 # ---------------------------------------------------------------------------

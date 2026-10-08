@@ -7,12 +7,12 @@ Subagente de workflows: Sonnet 5.5 (investigação complexa).
 
 from typing import Annotated, TypedDict
 
-from langchain_anthropic import ChatAnthropic
+from langchain_groq import ChatGroq
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
-from config import ANTHROPIC_API_KEY
+from config import GROQ_API_KEY
 from prompt import SYSTEM_PROMPT
 from tools import ALL_TOOLS
 
@@ -25,24 +25,16 @@ class AgentState(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# Modelo principal: Haiku 4.5 para orquestração e tarefas diretas
+# Modelo principal: Groq (gratuito) — temporário até recarregar créditos Anthropic
 # ---------------------------------------------------------------------------
 
-llm = ChatAnthropic(
-    model="claude-haiku-4-5-20251001",
-    api_key=ANTHROPIC_API_KEY,
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    api_key=GROQ_API_KEY,
     max_tokens=4096,
 ).bind_tools(ALL_TOOLS)
 
-_SYSTEM = SystemMessage(
-    content=[
-        {
-            "type": "text",
-            "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral"},
-        }
-    ]
-)
+_SYSTEM = SystemMessage(content=SYSTEM_PROMPT)
 
 
 # ---------------------------------------------------------------------------

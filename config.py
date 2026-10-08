@@ -3,8 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 HUBSPOT_API_TOKEN = os.environ["HUBSPOT_API_TOKEN"]
 HUBSPOT_API_TOKEN_ANALISE = os.environ.get("HUBSPOT_API_TOKEN_ANALISE", os.environ["HUBSPOT_API_TOKEN"])
 SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]

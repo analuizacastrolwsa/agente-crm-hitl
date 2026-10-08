@@ -1,16 +1,18 @@
 """
 StateGraph do agente CRM HITL.
-Estrutura: call_llm → execute_tool → loop até sem tool calls.
+Estrutura: call_claude → execute_tool → loop até sem tool calls.
+Modelo principal: Haiku 4.5 (tarefas de orquestração e relatório).
+Subagente de workflows: Sonnet 5.5 (investigação complexa).
 """
 
 from typing import Annotated, TypedDict
 
-from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
-from config import GROQ_API_KEY
+from config import ANTHROPIC_API_KEY
 from prompt import SYSTEM_PROMPT
 from tools import ALL_TOOLS
 
@@ -23,16 +25,24 @@ class AgentState(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# Modelo
+# Modelo principal: Haiku 4.5 para orquestração e tarefas diretas
 # ---------------------------------------------------------------------------
 
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=GROQ_API_KEY,
-    max_tokens=8096,
+llm = ChatAnthropic(
+    model="claude-haiku-4-5-20251001",
+    api_key=ANTHROPIC_API_KEY,
+    max_tokens=4096,
 ).bind_tools(ALL_TOOLS)
 
-_SYSTEM = SystemMessage(content=SYSTEM_PROMPT)
+_SYSTEM = SystemMessage(
+    content=[
+        {
+            "type": "text",
+            "text": SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+)
 
 
 # ---------------------------------------------------------------------------

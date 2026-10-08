@@ -13,14 +13,14 @@ Limite: 8 iterações (mesmo do n8n).
 import requests
 from typing import Annotated, TypedDict
 
-from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
 from config import (
-    GROQ_API_KEY,
+    ANTHROPIC_API_KEY,
     HUBSPOT_API_TOKEN_ANALISE,
     SLACK_BOT_TOKEN,
     SLACK_CHANNEL_ANALISE_ID,
@@ -102,20 +102,26 @@ class SubState(TypedDict):
     iteration_count: int
 
 
-_llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=GROQ_API_KEY,
+_llm = ChatAnthropic(
+    model="claude-sonnet-5-5",
+    api_key=ANTHROPIC_API_KEY,
     max_tokens=3000,
 ).bind_tools(_SUBAGENT_TOOLS)
 
 _SYSTEM = SystemMessage(
-    content=(
-        "Você é um investigador de workflows HubSpot. "
-        "Identifique o workflow pelo nome aproximado, leia sua estrutura completa "
-        "e produza um relatório com as possíveis causas do problema e sugestões de correção. "
-        "NUNCA tente editar workflows — você só tem ferramentas de leitura. "
-        "Se não encontrar o workflow após varrer todas as páginas, informe claramente."
-    )
+    content=[
+        {
+            "type": "text",
+            "text": (
+                "Você é um investigador de workflows HubSpot. "
+                "Identifique o workflow pelo nome aproximado, leia sua estrutura completa "
+                "e produza um relatório com as possíveis causas do problema e sugestões de correção. "
+                "NUNCA tente editar workflows — você só tem ferramentas de leitura. "
+                "Se não encontrar o workflow após varrer todas as páginas, informe claramente."
+            ),
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
 )
 
 MAX_ITERATIONS = 8  # mesmo limite do n8n

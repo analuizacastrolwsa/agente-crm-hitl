@@ -29,7 +29,7 @@ class AgentState(TypedDict):
 # ---------------------------------------------------------------------------
 
 llm = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="qwen/qwen3-8b",
     api_key=GROQ_API_KEY,
     max_tokens=4096,
 ).bind_tools(ALL_TOOLS)

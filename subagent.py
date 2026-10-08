@@ -103,7 +103,7 @@ class SubState(TypedDict):
 
 
 _llm = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="qwen/qwen3-8b",
     api_key=GROQ_API_KEY,
     max_tokens=3000,
 ).bind_tools(_SUBAGENT_TOOLS)

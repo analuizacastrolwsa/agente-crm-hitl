@@ -103,7 +103,7 @@ class SubState(TypedDict):
 
 
 _llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="llama3-70b-8192",
     api_key=GROQ_API_KEY,
     max_tokens=3000,
 ).bind_tools(_SUBAGENT_TOOLS)

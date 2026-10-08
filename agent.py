@@ -29,7 +29,7 @@ class AgentState(TypedDict):
 # ---------------------------------------------------------------------------
 
 llm = ChatGroq(
-    model="llama3-70b-8192",
+    model="llama3-groq-70b-8192-tool-use-preview",
     api_key=GROQ_API_KEY,
     max_tokens=4096,
 ).bind_tools(ALL_TOOLS)

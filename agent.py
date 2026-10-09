@@ -8,7 +8,7 @@ Subagente de workflows: Sonnet 5.5 (investigação complexa).
 from typing import Annotated, TypedDict
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AnyMessage, RemoveMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
@@ -80,6 +80,17 @@ def execute_tool(state: AgentState) -> AgentState:
     return {"messages": results}
 
 
+def trim_messages(state: AgentState) -> AgentState:
+    """Mantém apenas as últimas 2 rodadas no estado (1 rodada = AIMessage + ToolMessages)."""
+    messages = state["messages"]
+    # 2 rodadas × ~4 mensagens cada = 8 mensagens máximo
+    keep = 8
+    if len(messages) > keep:
+        to_delete = messages[:-keep]
+        return {"messages": [RemoveMessage(id=m.id) for m in to_delete]}
+    return {"messages": []}
+
+
 def should_continue(state: AgentState) -> str:
     last = state["messages"][-1]
     if getattr(last, "tool_calls", None):
@@ -95,10 +106,12 @@ def build_graph() -> StateGraph:
     graph = StateGraph(AgentState)
     graph.add_node("call_claude", call_claude)
     graph.add_node("execute_tool", execute_tool)
+    graph.add_node("trim_messages", trim_messages)
 
     graph.set_entry_point("call_claude")
     graph.add_conditional_edges("call_claude", should_continue)
-    graph.add_edge("execute_tool", "call_claude")
+    graph.add_edge("execute_tool", "trim_messages")
+    graph.add_edge("trim_messages", "call_claude")
 
     return graph.compile()
 

@@ -25,13 +25,13 @@ class AgentState(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# Modelo principal: Groq (gratuito) — temporário até recarregar créditos Anthropic
+# Modelo principal: openai/gpt-oss-20b via Groq
 # ---------------------------------------------------------------------------
 
 llm = ChatGroq(
-    model="qwen/qwen3.8-27b",
+    model="openai/gpt-oss-20b",
     api_key=GROQ_API_KEY,
-    max_tokens=4096,
+    max_tokens=2048,
 ).bind_tools(ALL_TOOLS)
 
 _SYSTEM = SystemMessage(content=SYSTEM_PROMPT)

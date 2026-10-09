@@ -13,14 +13,14 @@ Limite: 8 iterações (mesmo do n8n).
 import requests
 from typing import Annotated, TypedDict
 
-from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
 from config import (
-    GROQ_API_KEY,
+    ANTHROPIC_API_KEY,
     HUBSPOT_API_TOKEN_ANALISE,
     SLACK_BOT_TOKEN,
     SLACK_CHANNEL_ANALISE_ID,
@@ -102,10 +102,10 @@ class SubState(TypedDict):
     iteration_count: int
 
 
-_llm = ChatGroq(
-    model="openai/gpt-oss-20b",
-    api_key=GROQ_API_KEY,
-    max_tokens=2048,
+_llm = ChatAnthropic(
+    model="claude-haiku-4-5-20251001",
+    api_key=ANTHROPIC_API_KEY,
+    max_tokens=3000,
 ).bind_tools(_SUBAGENT_TOOLS)
 
 _SYSTEM = SystemMessage(
